@@ -1,85 +1,87 @@
 require('dotenv').config();
 const express = require('express');
-const mysql = require('mysql');
 const cors = require('cors');
-const path = require('path'); // Needed for serving frontend
+const path = require('path');
+const { Pool } = require('pg'); // PostgreSQL client
 
 const app = express();
 
-// Middleware
+// ------------------- MIDDLEWARE -------------------
 app.use(express.json());
 app.use(cors());
 
-// MySQL connection using .env variables
-const db = mysql.createConnection({
+// ------------------- DATABASE CONNECTION -------------------
+const db = new Pool({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME
+    database: process.env.DB_NAME,
+    port: process.env.DB_PORT || 5432,
 });
 
-db.connect((err) => {
-    if (err) {
-        console.error('Error connecting to MySQL:', err);
-        return;
-    }
-    console.log('Connected to MySQL database.');
+db.connect(err => {
+    if (err) console.error('Error connecting to PostgreSQL:', err);
+    else console.log('Connected to PostgreSQL database.');
 });
 
 // ------------------- API ROUTES -------------------
 
 // GET /movies: Retrieve all movies
-app.get('/movies', (req, res) => {
-    db.query('SELECT * FROM movies', (err, results) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(results);
-    });
+app.get('/movies', async (req, res) => {
+    try {
+        const result = await db.query('SELECT * FROM movies');
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // POST /movies: Add a new movie
-app.post('/movies', (req, res) => {
+app.post('/movies', async (req, res) => {
     const { title, director, genre, release_year, rating, image_url } = req.body;
-    db.query(
-        'INSERT INTO movies (title, director, genre, release_year, rating, image_url) VALUES (?, ?, ?, ?, ?, ?)',
-        [title, director, genre, release_year, rating, image_url],
-        (err, result) => {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ id: result.insertId, ...req.body });
-        }
-    );
+    try {
+        const result = await db.query(
+            'INSERT INTO movies (title, director, genre, release_year, rating, image_url) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [title, director, genre, release_year, rating, image_url]
+        );
+        res.json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // PUT /movies/:id: Update an existing movie
-app.put('/movies/:id', (req, res) => {
+app.put('/movies/:id', async (req, res) => {
     const { id } = req.params;
     const { title, director, genre, release_year, rating, image_url } = req.body;
-    db.query(
-        'UPDATE movies SET title=?, director=?, genre=?, release_year=?, rating=?, image_url=? WHERE id=?',
-        [title, director, genre, release_year, rating, image_url, id],
-        (err, result) => {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ message: 'Movie updated.' });
-        }
-    );
+    try {
+        await db.query(
+            'UPDATE movies SET title=$1, director=$2, genre=$3, release_year=$4, rating=$5, image_url=$6 WHERE id=$7',
+            [title, director, genre, release_year, rating, image_url, id]
+        );
+        res.json({ message: 'Movie updated.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // DELETE /movies/:id: Delete a movie
-app.delete('/movies/:id', (req, res) => {
+app.delete('/movies/:id', async (req, res) => {
     const { id } = req.params;
-    db.query('DELETE FROM movies WHERE id=?', [id], (err, result) => {
-        if (err) return res.status(500).json({ error: err.message });
+    try {
+        await db.query('DELETE FROM movies WHERE id=$1', [id]);
         res.json({ message: 'Movie deleted.' });
-    });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // ------------------- SERVE FRONTEND -------------------
-
-// Path to frontend build folder
 const frontendPath = path.join(__dirname, '../frontend/dist'); // adjust if needed
 app.use(express.static(frontendPath));
 
 // Wildcard route for React SPA
-app.get('/:anything', (req, res) => {
+app.get('*', (req, res) => {
     res.sendFile(path.join(frontendPath, 'index.html'));
 });
 

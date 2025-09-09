@@ -1,0 +1,21 @@
+{
+  "name": "movie-collection",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "cd frontend && npm i && npm run build && cd ../backend && npm i"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ArdenDiago/FSD_ET_Q2.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ArdenDiago/FSD_ET_Q2/issues"
+  },
+  "homepage": "https://github.com/ArdenDiago/FSD_ET_Q2#readme"
+}

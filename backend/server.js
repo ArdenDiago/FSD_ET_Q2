@@ -81,7 +81,7 @@ const frontendPath = path.join(__dirname, '../frontend/dist'); // adjust if need
 app.use(express.static(frontendPath));
 
 // Wildcard route for React SPA
-app.get('*', (req, res) => {
+app.get('/*', (req, res) => {
     res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
